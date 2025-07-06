@@ -7,44 +7,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        
-    - name: Install server dependencies
-      run: |
-        cd server
-        npm ci
-        
-    - name: Install client dependencies
-      run: |
-        cd client
-        npm ci
-        
-    - name: Build client
-      run: |
-        cd client
-        npm run build
-        
-    - name: Verify server startup
-      run: |
-        cd server
-        timeout 10s npm start || true
-        
-  code-quality:
+  build:
     runs-on: ubuntu-latest
     
     steps:
@@ -57,29 +20,68 @@ jobs:
         node-version: '18'
         cache: 'npm'
         
-    - name: Install dependencies
+    - name: Install server dependencies
       run: |
-        cd server && npm ci
-        cd ../client && npm ci
+        cd server
+        npm install
         
-    - name: Check package.json validity
+    - name: Install client dependencies
       run: |
-        cd server && npm run --silent
-        cd ../client && npm run --silent
+        cd client
+        npm install
         
-    - name: Verify file structure
+    - name: Build client
       run: |
-        echo "Checking project structure..."
+        cd client
+        npm run build
+        
+    - name: Test server scripts
+      run: |
+        cd server
+        npm test
+        
+    - name: Test client scripts
+      run: |
+        cd client
+        npm test
+        
+  verify:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Verify project structure
+      run: |
+        echo "=== Project Structure ==="
         ls -la
-        ls -la client/src/
+        echo "=== Client Structure ==="
+        ls -la client/
+        echo "=== Server Structure ==="
         ls -la server/
         
-    - name: Check for common issues
+    - name: Check package files
       run: |
-        echo "Checking for environment files..."
+        echo "=== Server package.json ==="
+        cat server/package.json
+        echo "=== Client package.json ==="
+        cat client/package.json
+        
+    - name: Verify no sensitive files
+      run: |
+        echo "Checking for sensitive files..."
         if [ -f "server/.env" ]; then
-          echo "WARNING: .env file found in server directory"
+          echo "❌ WARNING: .env file found in server directory"
+          exit 1
         fi
         if [ -f "client/.env" ]; then
-          echo "WARNING: .env file found in client directory"
-        fi 
+          echo "❌ WARNING: .env file found in client directory"
+          exit 1
+        fi
+        echo "✅ No sensitive files found" 
