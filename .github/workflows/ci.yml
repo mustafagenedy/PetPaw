@@ -1,0 +1,78 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install server dependencies
+      run: |
+        cd server
+        npm ci
+        
+    - name: Install client dependencies
+      run: |
+        cd client
+        npm ci
+        
+    - name: Run server tests
+      run: |
+        cd server
+        npm test --if-present
+        
+    - name: Run client tests
+      run: |
+        cd client
+        npm test --if-present
+        
+    - name: Build client
+      run: |
+        cd client
+        npm run build
+        
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        cd server && npm ci
+        cd ../client && npm ci
+        
+    - name: Lint server code
+      run: |
+        cd server
+        npm run lint --if-present
+        
+    - name: Lint client code
+      run: |
+        cd client
+        npm run lint --if-present 
