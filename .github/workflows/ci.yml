@@ -1,86 +1,71 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  client:
+    name: Client — lint + build + audit
     runs-on: ubuntu-latest
-    
+    defaults:
+      run:
+        working-directory: client
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Install server dependencies
-      run: |
-        cd server
-        npm install
-        
-    - name: Install client dependencies
-      run: |
-        cd client
-        npm install
-        
-    - name: Build client
-      run: |
-        cd client
-        npm run build
-        
-    - name: Test server scripts
-      run: |
-        cd server
-        npm test
-        
-    - name: Test client scripts
-      run: |
-        cd client
-        npm test
-        
-  verify:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Audit (high+critical only)
+        run: npm audit --omit=dev --audit-level=high
+
+  server:
+    name: Server — syntax + tests + audit
     runs-on: ubuntu-latest
-    
+    defaults:
+      run:
+        working-directory: server
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Verify project structure
-      run: |
-        echo "=== Project Structure ==="
-        ls -la
-        echo "=== Client Structure ==="
-        ls -la client/
-        echo "=== Server Structure ==="
-        ls -la server/
-        
-    - name: Check package files
-      run: |
-        echo "=== Server package.json ==="
-        cat server/package.json
-        echo "=== Client package.json ==="
-        cat client/package.json
-        
-    - name: Verify no sensitive files
-      run: |
-        echo "Checking for sensitive files..."
-        if [ -f "server/.env" ]; then
-          echo "❌ WARNING: .env file found in server directory"
-          exit 1
-        fi
-        if [ -f "client/.env" ]; then
-          echo "❌ WARNING: .env file found in client directory"
-          exit 1
-        fi
-        echo "✅ No sensitive files found" 
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - name: Syntax check every .js
+        run: |
+          find . -path ./node_modules -prune -o -name '*.js' -print \
+            | xargs -I{} node --check {}
+      - name: Tests
+        run: npm test
+      - name: Audit (high+critical only)
+        run: npm audit --omit=dev --audit-level=high
+
+  secrets-hygiene:
+    name: No .env committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse any tracked .env
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$'; then
+            echo "::error::A .env file is tracked in git. Remove it and rotate the secrets."
+            exit 1
+          fi
+          echo "No tracked .env files — OK."
