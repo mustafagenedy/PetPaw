@@ -9,7 +9,7 @@
     "build": "echo \"Server build completed\""
   },
   "keywords": [],
-  "author": "",
+  "author": "Mostafa Genidy <mostafagenydy@gmail.com>",
   "license": "ISC",
   "description": "",
   "dependencies": {

@@ -188,8 +188,8 @@ PetPaw/
 Register a new user account.
 ```json
 {
-  "name": "Code Genix",
-  "email": "codegenix@example.com",
+  "name": "Jane Doe",
+  "email": "user@example.com",
   "password": "password123"
 }
 ```
@@ -198,7 +198,7 @@ Register a new user account.
 Authenticate user and receive JWT token.
 ```json
 {
-  "email": "codegenix@example.com",
+  "email": "user@example.com",
   "password": "password123"
 }
 ```
@@ -508,9 +508,9 @@ This project is licensed under the ISC License.
 
 ## 👨‍💻 Author
 
-**CodeGenix** - [Email](codegenix.eg@gmail.com)
+**Mostafa Genidy** - [mostafagenydy@gmail.com](mailto:mostafagenydy@gmail.com)
 
 
 ---
 
-*Made with ❤️ for pets & their people. © 2025 CodeGenix* 
+*Made with ❤️ for pets & their people. © 2026 Mostafa Genidy*

@@ -272,7 +272,7 @@ If you encounter any issues:
 1. **Check the troubleshooting section above**
 2. **Review the README.md file**
 3. **Check GitHub Issues**
-4. **Contact**: codegenix.eg@gmail.com
+4. **Contact**: mostafagenydy@gmail.com
 
 ---
 

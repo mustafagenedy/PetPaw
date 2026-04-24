@@ -175,7 +175,7 @@ function App() {
       <BackToTop />
       <footer>
         <div>
-          <span role="img" aria-label="paw">🐾</span> Made with <span style={{color:'#ff8c42'}}>❤️</span> for pets &amp; their people. &copy; {new Date().getFullYear()} <a href="mailto:codegenix.eg@gmail.com" style={{color: 'inherit', textDecoration: 'none'}} title="CodeGenix">CodeGenix</a>
+          <span role="img" aria-label="paw">🐾</span> Made with <span style={{color:'#ff8c42'}}>❤️</span> for pets &amp; their people. &copy; {new Date().getFullYear()} <a href="mailto:mostafagenydy@gmail.com" style={{color: 'inherit', textDecoration: 'none'}} title="Mostafa Genidy">Mostafa Genidy</a>
         </div>
         <div style={{marginTop:'0.5rem'}}>
           <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="mx-2" title="Facebook">🐶</a>
