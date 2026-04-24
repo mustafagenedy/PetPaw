@@ -1,24 +1,38 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import './App.css';
-import AdminDashboard from './pages/AdminDashboard';
+import api from './api';
 import Booking from './pages/Booking';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
-function PrivateRoute({ children, adminOnly }) {
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  if (!token) return <Navigate to="/login" />;
-  if (adminOnly && user.role !== 'admin') return <Navigate to="/" />;
+// AdminDashboard pulls in recharts (~130 KB gzip). Only admins need it, so
+// defer the import until the route is hit.
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+
+function RouteFallback() {
+  return (
+    <div className="text-center py-5">
+      <span className="spinner-border" role="status" aria-label="Loading" />
+    </div>
+  );
+}
+
+function PrivateRoute({ children, adminOnly, user, authReady }) {
+  if (!authReady) return null; // wait until /me resolves to avoid redirect flicker
+  if (!user) return <Navigate to="/login" replace />;
+  if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
   return children;
 }
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [pathname]);
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+  }, [pathname]);
   return null;
 }
 
@@ -37,18 +51,59 @@ function BackToTop() {
 }
 
 function App() {
-  const [auth, setAuth] = useState(!!localStorage.getItem('token'));
-  const [theme, setTheme] = useState('light');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setAuth(false);
-    window.location.href = '/';
-  };
+  // Optimistic hydration from localStorage so the navbar doesn't flicker,
+  // then verify with /api/auth/me.
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+  const [authReady, setAuthReady] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Verify session on mount / app load
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/auth/me')
+      .then(res => {
+        if (cancelled) return;
+        setUser(res.data.user);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUser(null);
+        localStorage.removeItem('user');
+      })
+      .finally(() => {
+        if (!cancelled) setAuthReady(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleLogout = async () => {
+    try { await api.post('/auth/logout'); } catch { /* clear client state regardless */ }
+    setUser(null);
+    localStorage.removeItem('user');
+  };
+
+  const handleAuthSuccess = (u) => {
+    setUser(u);
+    localStorage.setItem('user', JSON.stringify(u));
+  };
+
+  const auth = !!user;
+
   return (
     <Router>
       <ScrollToTop />
@@ -85,8 +140,13 @@ function App() {
                 <button className="btn btn-link nav-link" onClick={handleLogout}><span role="img" aria-label="logout">🚪</span> Logout</button>
               </li>}
               <li className="nav-item ms-2">
-                <button className="btn btn-light mode-toggle" title="Toggle light/dark mode" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-                  {theme === 'light' ? <span role="img" aria-label="moon">🌙</span> : <span role="img" aria-label="sun">☀️</span>}
+                <button
+                  className="btn btn-light mode-toggle"
+                  aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                  title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                  onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                >
+                  <span aria-hidden="true">{theme === 'light' ? '🌙' : '☀️'}</span>
                 </button>
               </li>
             </ul>
@@ -96,11 +156,20 @@ function App() {
       <div className="page-transition container">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/booking" element={<Booking />} />
-          <Route path="/login" element={<Login setAuth={setAuth} />} />
-          <Route path="/register" element={<Register setAuth={setAuth} />} />
-          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-          <Route path="/admin" element={<PrivateRoute adminOnly={true}><AdminDashboard /></PrivateRoute>} />
+          <Route path="/booking" element={<Booking user={user} authReady={authReady} />} />
+          <Route path="/login" element={<Login onAuthSuccess={handleAuthSuccess} />} />
+          <Route path="/register" element={<Register onAuthSuccess={handleAuthSuccess} />} />
+          <Route path="/dashboard" element={<PrivateRoute user={user} authReady={authReady}><Dashboard /></PrivateRoute>} />
+          <Route
+            path="/admin"
+            element={
+              <PrivateRoute adminOnly user={user} authReady={authReady}>
+                <Suspense fallback={<RouteFallback />}>
+                  <AdminDashboard />
+                </Suspense>
+              </PrivateRoute>
+            }
+          />
         </Routes>
       </div>
       <BackToTop />

@@ -115,5 +115,5 @@ temp/
 *.bak
 *.backup
 
-# Local development files
-.env.example 
+# Claude Code workspace (per-user)
+.claude/

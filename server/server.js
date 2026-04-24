@@ -1,43 +1,22 @@
-const express = require('express');
-const cors = require('cors');
+const path = require('path');
 const dotenv = require('dotenv');
+
+// Load .env sitting next to this file, regardless of how the process is launched
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 const connectDB = require('./config/db');
-const authRoutes = require('./routes/auth');
-const serviceRoutes = require('./routes/services');
-const bookingRoutes = require('./routes/bookings');
-const galleryRoutes = require('./routes/gallery');
-const contactRoutes = require('./routes/contact');
-const analyticsRoutes = require('./routes/analytics');
+const { createApp } = require('./app');
 
-// Load env vars
-dotenv.config();
+// Fail fast if critical secrets are missing, too short, or still the placeholder
+const JWT_SECRET = process.env.JWT_SECRET || '';
+if (!JWT_SECRET || JWT_SECRET.length < 32 || /your_super_secret|replace_me/i.test(JWT_SECRET)) {
+  console.error('FATAL: JWT_SECRET is missing, shorter than 32 chars, or still the placeholder.');
+  console.error('Generate one with: openssl rand -base64 32');
+  process.exit(1);
+}
 
-// Connect to DB
 connectDB();
-
-const app = express();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Routes (to be implemented)
-app.get('/', (req, res) => {
-  res.send('PetPaw API is running');
-});
-
-app.use('/api/auth', authRoutes);
-app.use('/api/services', serviceRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/gallery', galleryRoutes);
-app.use('/api/contact', contactRoutes);
-app.use('/api/analytics', analyticsRoutes);
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Server Error' });
-});
+const app = createApp();
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -1,8 +1,8 @@
-import axios from 'axios';
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import api from '../api';
 
-export default function Login({ setAuth }) {
+export default function Login({ onAuthSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -14,10 +14,8 @@ export default function Login({ setAuth }) {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post('/api/auth/login', { email, password });
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      setAuth && setAuth(true);
+      const res = await api.post('/auth/login', { email, password });
+      onAuthSuccess?.(res.data.user);
       setLoading(false);
       if (res.data.user.role === 'admin') {
         navigate('/admin');
@@ -38,25 +36,42 @@ export default function Login({ setAuth }) {
           <h2 className="fw-bold mt-2 animate-fadein">Welcome Back!</h2>
           <p className="text-muted animate-fadein">Login to your PetPaw account</p>
         </div>
-        {error && <div className="alert alert-danger animate-fadein">{error}</div>}
-        <form onSubmit={handleSubmit} autoComplete="off">
+        {error && <div className="alert alert-danger animate-fadein" role="alert">{error}</div>}
+        <form onSubmit={handleSubmit}>
           <div className="mb-3">
-            <label className="form-label">Email</label>
-            <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+            <label htmlFor="login-email" className="form-label">Email</label>
+            <input
+              id="login-email"
+              type="email"
+              autoComplete="email"
+              className="form-control"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              autoFocus
+            />
           </div>
           <div className="mb-3">
-            <label className="form-label">Password</label>
-            <input type="password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required />
+            <label htmlFor="login-password" className="form-label">Password</label>
+            <input
+              id="login-password"
+              type="password"
+              autoComplete="current-password"
+              className="form-control"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
           </div>
-          <button type="submit" className="btn btn-primary w-100 animate-bounce" disabled={loading}>
+          <button type="submit" className="btn btn-primary w-100 animate-rise" disabled={loading}>
             {loading ? <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> : 'Login'}
             {loading ? ' Logging in...' : ''}
           </button>
         </form>
         <div className="text-center mt-3 animate-fadein">
-          <span className="text-muted">Don't have an account? <a href="/register">Register</a></span>
+          <span className="text-muted">Don't have an account? <Link to="/register">Register</Link></span>
         </div>
       </div>
     </div>
   );
-} 
+}

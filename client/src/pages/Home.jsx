@@ -1,5 +1,5 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
+import api from '../api';
 
 const petFacts = [
   "Dogs' noses are wet to help absorb scent chemicals!",
@@ -14,31 +14,37 @@ const petFacts = [
 
 export default function Home() {
   const [gallery, setGallery] = useState([]);
+  const [galleryLoading, setGalleryLoading] = useState(true);
   const [contact, setContact] = useState({ name: '', email: '', message: '' });
   const [contactMsg, setContactMsg] = useState('');
   const [contactErr, setContactErr] = useState('');
   const [fact, setFact] = useState('');
-  const isLoggedIn = !!localStorage.getItem('token');
 
   useEffect(() => {
-    axios.get('/api/gallery').then(res => setGallery(Array.isArray(res.data) ? res.data : [])).catch(() => setGallery([]));
+    let cancelled = false;
+    api.get('/gallery')
+      .then(res => { if (!cancelled) setGallery(Array.isArray(res.data) ? res.data : []); })
+      .catch(() => { if (!cancelled) setGallery([]); })
+      .finally(() => { if (!cancelled) setGalleryLoading(false); });
     setFact(petFacts[Math.floor(Math.random() * petFacts.length)]);
+    return () => { cancelled = true; };
   }, []);
 
   const handleContactChange = e => setContact({ ...contact, [e.target.name]: e.target.value });
   const handleContactSubmit = async e => {
     e.preventDefault();
     setContactMsg(''); setContactErr('');
-    if (!isLoggedIn) {
-      setContactErr('You must be logged in to send a message.');
-      return;
-    }
     try {
-      await axios.post('/api/contact', contact);
-      setContactMsg('Message sent!');
+      await api.post('/contact', contact);
+      setContactMsg('Message sent! We\'ll get back to you soon.');
       setContact({ name: '', email: '', message: '' });
     } catch (err) {
-      setContactErr('Failed to send message');
+      const status = err.response?.status;
+      if (status === 429) {
+        setContactErr('Too many messages sent. Please try again in an hour.');
+      } else {
+        setContactErr('Failed to send message. Please try again.');
+      }
     }
   };
 
@@ -46,19 +52,17 @@ export default function Home() {
     <div>
       {/* Hero Section with SVG wave and pet illustration */}
       <section className="py-5 text-center bg-primary text-white mb-5 rounded position-relative overflow-hidden hero-section">
-        <svg viewBox="0 0 1440 320" className="hero-wave" style={{position:'absolute',bottom:0,left:0,width:'100%',zIndex:0}}><path fill="#fffbe7" fillOpacity="1" d="M0,224L48,202.7C96,181,192,139,288,144C384,149,480,203,576,197.3C672,192,768,128,864,128C960,128,1056,192,1152,197.3C1248,203,1344,149,1392,122.7L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="hero-wave" aria-hidden="true"><path d="M0,224L48,202.7C96,181,192,139,288,144C384,149,480,203,576,197.3C672,192,768,128,864,128C960,128,1056,192,1152,197.3C1248,203,1344,149,1392,122.7L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>
         <div className="container position-relative" style={{zIndex:1}}>
           <div className="d-flex flex-column align-items-center justify-content-center">
             <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f436.png" alt="Dog" style={{width:64,marginRight:8}} />
             <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f431.png" alt="Cat" style={{width:64,marginLeft:8}} />
           </div>
-          <h1 className="display-4 fw-bold mt-3 animate-pop">Welcome to PetPaw Grooming</h1>
-          <p className="lead animate-fadein hero-lead">
-            <span className="hero-lead-bg">
-              Professional grooming for your beloved pets. Book your appointment today!
-            </span>
+          <h1 className="display-4 fw-bold mt-3 animate-fadein">Welcome to PetPaw Grooming</h1>
+          <p className="lead animate-fadein hero-lead mt-2">
+            Professional grooming for your beloved pets. Book your appointment today.
           </p>
-          <a href="/booking" className="btn btn-light btn-lg mt-3 animate-bounce">Book Now</a>
+          <a href="/booking" className="btn btn-light btn-lg mt-3 animate-rise">Book Now</a>
         </div>
       </section>
 
@@ -132,23 +136,34 @@ export default function Home() {
       </section>
 
       {/* Gallery Section with animated images */}
-      <section className="mb-5">
-        <div className="container">
-          <h2 className="mb-4 text-center">Gallery</h2>
-          <div className="row g-3 justify-content-center">
-            {gallery.length === 0 && [1,2,3,4].map(i => (
-              <div className="col-6 col-md-3" key={i}>
-                <img src={`https://placedog.net/300/200?id=${i}`} alt={`Pet ${i}`} className="img-fluid rounded shadow-sm gallery-img animate-pop" />
-              </div>
-            ))}
-            {gallery.map(img => (
-              <div className="col-6 col-md-3" key={img._id}>
-                <img src={img.url} alt={img.caption || 'Pet'} className="img-fluid rounded shadow-sm gallery-img animate-pop" />
-              </div>
-            ))}
+      {(galleryLoading || gallery.length > 0) && (
+        <section className="mb-5">
+          <div className="container">
+            <h2 className="mb-4 text-center">Gallery</h2>
+            <div className="row g-3 justify-content-center">
+              {galleryLoading && [1, 2, 3, 4].map(i => (
+                <div className="col-6 col-md-3" key={`sk-${i}`}>
+                  <div
+                    className="gallery-skeleton rounded shadow-sm"
+                    role="status"
+                    aria-label="Loading gallery image"
+                  />
+                </div>
+              ))}
+              {!galleryLoading && gallery.map(img => (
+                <div className="col-6 col-md-3" key={img._id}>
+                  <img
+                    src={img.url}
+                    alt={img.caption || 'Pet'}
+                    loading="lazy"
+                    className="img-fluid rounded shadow-sm gallery-img animate-pop"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Contact Section */}
       <section className="bg-primary text-white py-5 rounded animate-fadein">
@@ -156,23 +171,22 @@ export default function Home() {
           <h2 className="mb-4 text-center">Contact Us</h2>
           <div className="row justify-content-center">
             <div className="col-md-6">
-              {contactMsg && <div className="alert alert-success">{contactMsg}</div>}
-              {contactErr && <div className="alert alert-danger">{contactErr}</div>}
+              {contactMsg && <div className="alert alert-success" role="status">{contactMsg}</div>}
+              {contactErr && <div className="alert alert-danger" role="alert">{contactErr}</div>}
               <form onSubmit={handleContactSubmit}>
                 <div className="mb-3">
-                  <label htmlFor="name" className="form-label">Name</label>
-                  <input type="text" className="form-control" id="name" name="name" value={contact.name} onChange={handleContactChange} placeholder="Your Name" required disabled={!isLoggedIn} />
+                  <label htmlFor="contact-name" className="form-label">Name</label>
+                  <input type="text" className="form-control" id="contact-name" name="name" autoComplete="name" value={contact.name} onChange={handleContactChange} placeholder="Your Name" required />
                 </div>
                 <div className="mb-3">
-                  <label htmlFor="email" className="form-label">Email</label>
-                  <input type="email" className="form-control" id="email" name="email" value={contact.email} onChange={handleContactChange} placeholder="Your Email" required disabled={!isLoggedIn} />
+                  <label htmlFor="contact-email" className="form-label">Email</label>
+                  <input type="email" className="form-control" id="contact-email" name="email" autoComplete="email" value={contact.email} onChange={handleContactChange} placeholder="Your Email" required />
                 </div>
                 <div className="mb-3">
-                  <label htmlFor="message" className="form-label">Message</label>
-                  <textarea className="form-control" id="message" name="message" value={contact.message} onChange={handleContactChange} rows="3" placeholder="Your Message" required disabled={!isLoggedIn}></textarea>
+                  <label htmlFor="contact-message" className="form-label">Message</label>
+                  <textarea className="form-control" id="contact-message" name="message" value={contact.message} onChange={handleContactChange} rows="3" placeholder="How can we help?" required maxLength={2000}></textarea>
                 </div>
-                <button type="submit" className="btn btn-light" disabled={!isLoggedIn}>Send Message</button>
-                {!isLoggedIn && <div className="alert alert-warning mt-3">You must be logged in to send a message.</div>}
+                <button type="submit" className="btn btn-light">Send Message</button>
               </form>
               <div className="mt-4">
                 <p className="mb-1"><strong>Email:</strong> info@petpaw.com</p>
