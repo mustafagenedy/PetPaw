@@ -135,7 +135,7 @@ Vercel and Render both auto-deploy on push to `master`. Vercel also creates prev
 
 Settings → Branches → Add rule for `master`:
 - ✅ Require pull request before merging
-- ✅ Require status checks (`Client — lint + build + audit`, `Server — syntax + audit`, `No .env committed`)
+- ✅ Require status checks (`Client — lint + build + audit`, `Server — syntax + tests + audit`, `No .env committed`)
 - ✅ Require branches to be up to date before merging
 - ✅ Do not allow bypassing the above settings
 
@@ -145,7 +145,14 @@ Also enable in Settings → Code security:
 
 ## 10. Observability
 
-Add these post-launch:
+Sentry and Plausible analytics are already wired in the codebase — they activate when you provide DSNs/domains in env. Without those env vars they're complete no-ops. Tests don't initialize them.
+
+### Sentry (error tracking)
+
+**Server** — set `SENTRY_DSN` on Render. Optional: `SENTRY_TRACES_SAMPLE_RATE` (default `0.1`).
+**Client** — set `VITE_SENTRY_DSN` on Vercel as a *build-time* env var. Optional: `VITE_SENTRY_TRACES_SAMPLE_RATE`.
+
+Get DSNs at sentry.io → New Project (one project per side: Node for server, React for client). PII is *not* sent (`sendDefaultPii: false`).
 
 ### Uptime
 - [Better Stack](https://betterstack.com/) or [UptimeRobot](https://uptimerobot.com/) — free tiers are fine.
@@ -157,8 +164,9 @@ Add these post-launch:
 - Configure PII stripping: don't send user emails, phone, or messages to Sentry breadcrumbs.
 
 ### Analytics (privacy-respecting)
-- [Plausible](https://plausible.io) or [Umami](https://umami.is/) (self-hostable). No cookies, GDPR-compliant by default.
-- Don't use Google Analytics without a consent banner; it requires one in the EU.
+- Already wired: set `VITE_PLAUSIBLE_DOMAIN` on Vercel to the registered domain (e.g. `petpaw.com`) — the script tag is injected at runtime.
+- Override `VITE_PLAUSIBLE_SRC` to point at a self-hosted Plausible or an Umami install if you'd rather self-host.
+- No cookies, GDPR-compliant by default. Don't add Google Analytics without a consent banner.
 
 ## 11. Post-launch checklist (day-of)
 

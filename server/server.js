@@ -4,6 +4,10 @@ const dotenv = require('dotenv');
 // Load .env sitting next to this file, regardless of how the process is launched
 dotenv.config({ path: path.join(__dirname, '.env') });
 
+// Sentry must initialize before express + mongoose so it can auto-instrument.
+// instrument.js is a no-op when SENTRY_DSN is unset.
+require('./instrument');
+
 const connectDB = require('./config/db');
 const { createApp } = require('./app');
 

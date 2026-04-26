@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const Sentry = require('@sentry/node');
 
 const authRoutes = require('./routes/auth');
 const serviceRoutes = require('./routes/services');
@@ -41,6 +42,12 @@ function createApp() {
   app.use('/api/contact', contactRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/audit', auditRoutes);
+
+  // Sentry error capture — must come after routes, before our custom handler.
+  // No-op when SENTRY_DSN is unset (e.g. tests, dev without telemetry).
+  if (process.env.SENTRY_DSN) {
+    Sentry.setupExpressErrorHandler(app);
+  }
 
   app.use((err, req, res, next) => {
     if (process.env.NODE_ENV !== 'production') console.error(err);
