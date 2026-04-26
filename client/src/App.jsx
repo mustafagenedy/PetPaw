@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import './App.css';
-import api from './api';
+import api, { setCsrfToken } from './api';
 import Booking from './pages/Booking';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
@@ -79,11 +79,13 @@ function App() {
         if (cancelled) return;
         setUser(res.data.user);
         localStorage.setItem('user', JSON.stringify(res.data.user));
+        if (res.data.csrfToken) setCsrfToken(res.data.csrfToken);
       })
       .catch(() => {
         if (cancelled) return;
         setUser(null);
         localStorage.removeItem('user');
+        setCsrfToken(null);
       })
       .finally(() => {
         if (!cancelled) setAuthReady(true);
@@ -95,6 +97,7 @@ function App() {
     try { await api.post('/auth/logout'); } catch { /* clear client state regardless */ }
     setUser(null);
     localStorage.removeItem('user');
+    setCsrfToken(null);
   };
 
   const handleAuthSuccess = (u) => {

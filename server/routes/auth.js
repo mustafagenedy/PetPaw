@@ -46,8 +46,8 @@ router.post(
       }
       const user = await User.create({ name, email, phone, password });
       const token = jwt.sign({ id: user._id, v: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      issueSession(res, token);
-      res.status(201).json({ user: toClientUser(user) });
+      const csrfToken = issueSession(res, token);
+      res.status(201).json({ user: toClientUser(user), csrfToken });
     } catch (err) {
       res.status(500).json({ message: 'Server error' });
     }
@@ -75,8 +75,8 @@ router.post(
         return res.status(400).json({ message: 'Invalid credentials' });
       }
       const token = jwt.sign({ id: user._id, v: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      issueSession(res, token);
-      res.json({ user: toClientUser(user) });
+      const csrfToken = issueSession(res, token);
+      res.json({ user: toClientUser(user), csrfToken });
     } catch (err) {
       res.status(500).json({ message: 'Server error' });
     }
@@ -101,9 +101,12 @@ router.post('/logout', async (req, res) => {
   }
 });
 
-// Current user — how the client rehydrates auth state on page load
+// Current user — how the client rehydrates auth state on page load.
+// Echoes the existing csrf cookie value so the cross-origin client can
+// stash it (cookies set on the API origin aren't readable via document.cookie
+// on the Vercel origin).
 router.get('/me', auth, (req, res) => {
-  res.json({ user: toClientUser(req.user) });
+  res.json({ user: toClientUser(req.user), csrfToken: req.cookies?.csrf });
 });
 
 module.exports = router;

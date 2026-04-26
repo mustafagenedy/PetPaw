@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../api';
+import api, { setCsrfToken } from '../api';
 
 export default function Login({ onAuthSuccess }) {
   const [email, setEmail] = useState('');
@@ -15,6 +15,7 @@ export default function Login({ onAuthSuccess }) {
     setLoading(true);
     try {
       const res = await api.post('/auth/login', { email, password });
+      setCsrfToken(res.data.csrfToken);
       onAuthSuccess?.(res.data.user);
       setLoading(false);
       if (res.data.user.role === 'admin') {
