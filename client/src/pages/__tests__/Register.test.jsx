@@ -6,6 +6,7 @@ import Register from '../Register';
 
 vi.mock('../../api', () => ({
   default: { post: vi.fn() },
+  setCsrfToken: vi.fn(),
 }));
 import api from '../../api';
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../api';
+import api, { setCsrfToken } from '../api';
 
 export default function Register({ onAuthSuccess }) {
   const [name, setName] = useState('');
@@ -17,6 +17,7 @@ export default function Register({ onAuthSuccess }) {
     setLoading(true);
     try {
       const res = await api.post('/auth/register', { name, email, phone, password });
+      setCsrfToken(res.data.csrfToken);
       onAuthSuccess?.(res.data.user);
       setLoading(false);
       navigate('/dashboard');
